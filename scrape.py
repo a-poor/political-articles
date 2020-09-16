@@ -1,5 +1,6 @@
 
 import re
+import time
 from pathlib import Path
 
 import requests
@@ -40,6 +41,9 @@ urls = [
     
     ("politico","https://www.politico.com/","politico"),
     ("npr","https://www.npr.org/","npr"),
+    
+    ("apnews","https://apnews.com/","apnews"),
+    ("reuiters","https://www.reuters.com/news/us","reuiters"),
 
 ]
 
@@ -76,7 +80,7 @@ class ArticleScraper:
 
     def link_step(self):
         self.checked = self.checked.union(self.active)
-        self.active = self.queue()
+        self.active = self.queue
         self.queue = set()
 
     def add_link(self,url):
@@ -93,10 +97,10 @@ class ArticleScraper:
 
     def scrape(self,depth=3,data_dir="."):
         fn = time.strftime("%Y%m%d-%H%M%S") + f"_{self.dirname}_"
-        parent = Path(data_dir)
-        if not parent.exists():
-            parent.mkdir()
-        path = parent / Path(self.dirname)
+        data_dir = Path(data_dir)
+        if not data_dir.exists():
+            data_dir.mkdir()
+        path = data_dir / Path(self.dirname)
         if not path.exists():
             path.mkdir()
         logger.info(f"Saving data to {path}")
@@ -110,7 +114,7 @@ class ArticleScraper:
                 # Extract and save the text
                 text = self.get_text(soup)
                 filename = path / f"{fn}{hash(text)}.txt"
-                (path / filename).write_text(text)
+                filename.write_text(text)
                 # Extract links
                 links = self.get_links(soup)
                 logger.info(f"Found {len(links)} links")
