@@ -143,12 +143,12 @@ class ArticleScraper:
 
 if __name__ == "__main__":
     logger.info("Starting")
+    random.shuffle(urls)
     for site in urls:
         logger.info(f"Scraping site: {site[0]}")
         ArticleScraper(
             *site,
-            max_retries=5,
-            sleep_lambda=1.0
+            max_retries=5
         ).scrape(
             depth=3,
             data_dir="./data"
