@@ -62,7 +62,7 @@ class ArticleScraper:
         self.checked = set()
         
     def validate_url(self,url):
-        return not bool(re.match("mailto",url) \
+        return not bool(re.match("mailto",url)) \
                 and \
                 bool(re.search(self.url_pattern,url))
 
