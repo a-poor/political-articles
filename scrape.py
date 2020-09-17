@@ -78,7 +78,7 @@ class ArticleScraper:
 
                 logger.error(f"{self.dirname} | Request error: {e} | Retrying: {retrying}")
                 if retrying:
-                    logger.info("{self.dirname} | Sleeping for {sleep_time}s")
+                    logger.info(f"{self.dirname} | Sleeping for {sleep_time}s")
                     time.sleep(sleep_time)
             else:
                 return BeautifulSoup(resp.content,"lxml")
