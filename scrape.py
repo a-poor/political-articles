@@ -1,6 +1,7 @@
 
 import re
 import time
+import random
 from pathlib import Path
 
 import requests
@@ -48,7 +49,7 @@ urls = [
 ]
 
 class ArticleScraper:
-    def __init__(self,dirname,start_url,url_pattern=None):
+    def __init__(self,dirname,start_url,url_pattern=None,max_retries=5):
         # Settings 
         self.dirname = dirname
         self.start = start_url
@@ -56,19 +57,32 @@ class ArticleScraper:
             url_pattern = ".*"
         else:
             self.url_pattern = url_pattern
+        self.max_retries = max_retries
         # URL queues
         self.queue = set()
         self.active = set()
         self.checked = set()
         
     def validate_url(self,url):
-        return not bool(re.match("mailto",url)) \
-                and \
-                bool(re.search(self.url_pattern,url))
+        return (re.match("mailto",url) is not None and
+                re.search(self.url_pattern,url) is not None)
 
     def get_page(self,url):
-        resp = requests.get(url)
-        return BeautifulSoup(resp.content,"lxml")
+        for ri in range(self.max_retries+1):
+            try:
+                resp = requests.get(url)
+            except Exception as e:
+                retrying = ri < self.max_retries + 1
+
+                sleep_time = max(10 ** ri + random.gauss(5,2),0.1)
+
+                logger.error(f"{self.dirname} | Request error: {e} | Retrying: {retrying}")
+                if retrying:
+                    logger.info("{self.dirname} | Sleeping for {sleep_time}s")
+                    time.sleep(sleep_time)
+            else:
+                return BeautifulSoup(resp.content,"lxml")
+        return None
 
     def get_links(self,soup):
         a_tags = soup.find_all("a")
@@ -105,30 +119,40 @@ class ArticleScraper:
         path = data_dir / Path(self.dirname)
         if not path.exists():
             path.mkdir()
-        logger.info(f"Saving data to {path}")
+        logger.info(f"{self.dirname} | Saving data to {path}")
         self.queue.add(self.start)
         for i in range(depth):
             self.link_step()
-            logger.info(f"Scrape depth {i}. Scraping {len(self.active)} pages")
+            logger.info(f"{self.dirname} | Scrape depth {i}. Scraping {len(self.active)} pages")
             for url in self.active:
                 # Get the page
                 soup = self.get_page(url)
+                if soup is None:
+                    logger.info(f"{self.dirname} | Couldn't read page. Skipping.")
+                    continue
                 # Extract and save the text
                 text = self.get_text(soup)
                 filename = path / f"{fn}{hash(text)}.txt"
                 filename.write_text(text)
                 # Extract links
                 links = self.get_links(soup)
-                logger.info(f"Found {len(links)} links")
+                logger.info(f"{self.dirname} | Found {len(links)} links")
                 self.add_links(links)
-        logger.info(f"Scraped a total of {len(self.checked)} links.")
+        logger.info(f"{self.dirname} | Scraped a total of {len(self.checked)} links.")
 
 
 if __name__ == "__main__":
     logger.info("Starting")
     for site in urls:
         logger.info(f"Scraping site: {site[0]}")
-        ArticleScraper(*site).scrape(data_dir="./data")
+        ArticleScraper(
+            *site,
+            max_retries=5,
+            sleep_lambda=1.0
+        ).scrape(
+            depth=3,
+            data_dir="./data"
+        )
     logger.info("Done.")
 
 
